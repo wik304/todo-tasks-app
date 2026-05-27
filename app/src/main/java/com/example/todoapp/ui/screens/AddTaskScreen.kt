@@ -30,6 +30,7 @@ import android.net.Uri
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.todoapp.data.AttachmentData
 import com.example.todoapp.ui.TaskViewModel
+import com.example.todoapp.ui.components.WheelPicker
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +38,12 @@ fun AddTaskScreen(
     onSaveClick: (String, String, Priority, List<LocationData>, List<AttachmentData>) -> Unit,
     viewModel: TaskViewModel
 ) {
+    var isRecurring by remember { mutableStateOf(false) }
+    var selectedRecurrenceOption by remember { mutableStateOf("Daily") }
+
+    var customInterval by remember { mutableStateOf("1") }
+    var customUnit by remember { mutableStateOf("Days") }
+
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var selectedPriority by remember { mutableStateOf(Priority.MEDIUM) }
@@ -116,7 +123,7 @@ fun AddTaskScreen(
                     TextButton(
                         onClick = {
                             if (title.isNotBlank()) {
-                                onSaveClick(title, description, selectedPriority, selectedLocations, selectedAttachments) // <--- Dodaj tutaj listę
+                                onSaveClick(title, description, selectedPriority, selectedLocations, selectedAttachments)
                             }
                         },
                         modifier = Modifier.padding(end = 8.dp)
@@ -134,10 +141,142 @@ fun AddTaskScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
+                .padding(16.dp, 0.dp)
+                .navigationBarsPadding()
+                .imePadding()
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Task Type", style = MaterialTheme.typography.labelLarge)
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    FilterChip(
+                        selected = !isRecurring,
+                        onClick = { isRecurring = false },
+                        label = {
+                            Text(
+                                text = "One-time task",
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center
+                            )
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp),
+                        border = null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    )
+
+                    FilterChip(
+                        selected = isRecurring,
+                        onClick = { isRecurring = true },
+                        label = {
+                            Text(
+                                text = "Recurring task",
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center
+                            )
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp),
+                        border = null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    )
+                }
+            }
+
+            if (isRecurring) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Recurrence", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val recurrenceOptions = listOf("Daily", "Weekly", "Monthly", "Custom")
+                        recurrenceOptions.forEachIndexed { index, option ->
+                            val shape = when (index) {
+                                0 -> RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
+                                recurrenceOptions.lastIndex -> RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
+                                else -> RectangleShape
+                            }
+
+                            FilterChip(
+                                selected = selectedRecurrenceOption == option,
+                                onClick = { selectedRecurrenceOption = option },
+                                label = {
+                                    Text(
+                                        text = option,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                shape = shape,
+                                border = null,
+                                colors = FilterChipDefaults.filterChipColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            )
+                        }
+                    }
+
+                    if (selectedRecurrenceOption == "Custom") {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Repeat every:", style = MaterialTheme.typography.titleMedium)
+
+                                Spacer(modifier = Modifier.width(24.dp))
+
+                                val numbers = (1..99).map { it.toString() }
+                                WheelPicker(
+                                    items = numbers,
+                                    modifier = Modifier.width(50.dp),
+                                    onItemSelected = { customInterval = it }
+                                )
+
+                                Spacer(modifier = Modifier.width(16.dp))
+
+                                val units = listOf("Days", "Weeks", "Months", "Years")
+                                WheelPicker(
+                                    items = units,
+                                    modifier = Modifier.width(100.dp),
+                                    onItemSelected = { customUnit = it }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Title", style = MaterialTheme.typography.labelLarge)
@@ -394,7 +533,7 @@ fun AddTaskScreen(
                     ) {
                         items(selectedAttachments) { file ->
                             Card(
-                                modifier = Modifier.size(80.dp),
+                                modifier = Modifier.size(70.dp),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Box(modifier = Modifier.fillMaxSize()) {
@@ -431,6 +570,8 @@ fun AddTaskScreen(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 

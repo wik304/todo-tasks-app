@@ -1,5 +1,7 @@
 package com.example.todoapp.ui.navigation
 
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
@@ -89,13 +91,19 @@ fun Navigation(viewModel: TaskViewModel) {
         NavHost(
             navController = navController,
             startDestination = Screen.TasksScreen.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
+                .imePadding()
         ) {
             composable(route = Screen.TasksScreen.route) {
                 TasksScreen(viewModel = viewModel)
             }
             composable(route = Screen.SettingsScreen.route) {
-                SettingsScreen()
+                SettingsScreen(
+                    selectedTheme = viewModel.appTheme,
+                    onThemeSelected = { newTheme -> viewModel.updateTheme(newTheme) }
+                )
             }
             composable(route = Screen.AddTaskScreen.route) {
                 AddTaskScreen(

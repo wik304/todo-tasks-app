@@ -18,6 +18,8 @@ playServicesMaps = "20.0.0"
 room = "2.8.4"
 navigationCompose = "2.9.8"
 room3Compiler = "3.0.0-alpha05"
+runtime = "1.11.2"
+ui = "1.11.2"
 
 [libraries]
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
@@ -48,6 +50,8 @@ maps-compose-v433 = { module = "com.google.maps.android:maps-compose", version.r
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
 play-services-maps = { module = "com.google.android.gms:play-services-maps", version.ref = "playServicesMaps" }
 androidx-room3-compiler = { group = "androidx.room3", name = "room3-compiler", version.ref = "room3Compiler" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

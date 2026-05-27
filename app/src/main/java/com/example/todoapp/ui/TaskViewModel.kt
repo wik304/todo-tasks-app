@@ -15,6 +15,9 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import android.app.Application
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.example.todoapp.data.AttachmentData
 
 enum class TaskFilter { ALL, TODAY, OVERDUE }
@@ -30,6 +33,13 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
 
     private val _selectedSort = MutableStateFlow(TaskSort.DATE)
     val selectedSort = _selectedSort.asStateFlow()
+
+    var appTheme by mutableStateOf("System")
+        private set
+
+    fun updateTheme(newTheme: String) {
+        appTheme = newTheme
+    }
 
     val tasksState: StateFlow<List<TaskEntity>> = combine(
         taskDao.getAllTasks(),

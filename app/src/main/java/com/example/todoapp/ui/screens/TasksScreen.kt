@@ -54,11 +54,12 @@ fun TasksScreen(viewModel: TaskViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.End,
             ) {
                 TextButton(
                     onClick = {
@@ -92,7 +93,11 @@ fun TasksScreen(viewModel: TaskViewModel) {
             }
 
             AnimatedVisibility(visible = activeSection == ActiveSection.SEARCH) {
-                Column {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 0.dp),
+                ) {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { viewModel.onSearchQueryChange(it) },
@@ -106,7 +111,11 @@ fun TasksScreen(viewModel: TaskViewModel) {
             }
 
             AnimatedVisibility(visible = activeSection == ActiveSection.FILTER) {
-                Column {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 0.dp),
+                ) {
                     Text("Filter:", style = MaterialTheme.typography.labelLarge)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -131,7 +140,11 @@ fun TasksScreen(viewModel: TaskViewModel) {
             }
 
             AnimatedVisibility(visible = activeSection == ActiveSection.SORT) {
-                Column {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 0.dp),
+                ) {
                     Text("Sort by:", style = MaterialTheme.typography.labelLarge)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -155,10 +168,12 @@ fun TasksScreen(viewModel: TaskViewModel) {
             }
 
             HorizontalDivider()
-            Spacer(modifier = Modifier.height(16.dp))
+
+//            Spacer(modifier = Modifier.height(4.dp))
 
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 items(tasks, key = { it.id }) { task ->

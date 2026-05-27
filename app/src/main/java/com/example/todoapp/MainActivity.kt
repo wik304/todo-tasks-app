@@ -1,9 +1,15 @@
 package com.example.todoapp
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -22,7 +28,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             TaskDatabase::class.java, "task-database"
         )
-            .fallbackToDestructiveMigration()
+            .fallbackToDestructiveMigration(false)
             .build()
 
         val taskDao = db.taskDao()
@@ -35,9 +41,15 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            ToDoAppTheme {
-                val viewModel: TaskViewModel = viewModel(factory = viewModelFactory)
-                Navigation(viewModel = viewModel)
+            val viewModel: TaskViewModel = viewModel(factory = viewModelFactory)
+
+            ToDoAppTheme(themeMode = viewModel.appTheme) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    Navigation(viewModel = viewModel)
+                }
             }
         }
     }

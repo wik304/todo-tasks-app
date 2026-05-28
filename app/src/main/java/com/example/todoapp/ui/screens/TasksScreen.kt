@@ -167,14 +167,14 @@ fun TasksScreen(viewModel: TaskViewModel) {
                 }
             }
 
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
 //            Spacer(modifier = Modifier.height(4.dp))
 
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+//                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 items(tasks, key = { it.id }) { task ->
                     TaskItem(

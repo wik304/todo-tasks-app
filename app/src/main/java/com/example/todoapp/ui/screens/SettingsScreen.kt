@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.todoapp.ui.components.SwitchSettingItem
+import com.example.todoapp.ui.components.TextSection
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,17 +55,20 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            SettingsSection(title = "App Theme") {
+            TextSection(title = "App Theme") {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
                 ) {
                     val themes = listOf("System", "Light", "Dark")
                     themes.forEachIndexed { index, theme ->
                         val shape = when (index) {
                             0 -> RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
-                            themes.lastIndex -> RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
+                            themes.lastIndex -> RoundedCornerShape(
+                                topEnd = 12.dp,
+                                bottomEnd = 12.dp
+                            )
+
                             else -> RectangleShape
                         }
 
@@ -95,7 +100,7 @@ fun SettingsScreen(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-            SettingsSection(title = "App Behavior") {
+            TextSection(title = "App Behavior") {
                 SwitchSettingItem(
                     icon = Icons.Default.Smartphone,
                     title = "Keep screen awake",
@@ -114,26 +119,7 @@ fun SettingsScreen(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-            SettingsSection(title = "Task Gestures") {
-                SwitchSettingItem(
-                    icon = Icons.Default.Check,
-                    title = "Swipe to complete",
-                    subtitle = "Allow completing tasks by swiping right",
-                    checked = swipeToCompleteEnabled,
-                    onCheckedChange = { swipeToCompleteEnabled = it }
-                )
-                SwitchSettingItem(
-                    icon = Icons.Default.Delete,
-                    title = "Swipe to delete",
-                    subtitle = "Allow deleting tasks by swiping left",
-                    checked = swipeToDeleteEnabled,
-                    onCheckedChange = { swipeToDeleteEnabled = it }
-                )
-            }
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-            SettingsSection(title = "Notifications") {
+            TextSection(title = "Notifications") {
                 SwitchSettingItem(
                     icon = Icons.Default.Notifications,
                     title = "Enable notifications",
@@ -160,7 +146,7 @@ fun SettingsScreen(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-            SettingsSection(title = "User Preferences") {
+            TextSection(title = "User Preferences") {
                 SwitchSettingItem(
                     icon = Icons.Default.Schedule,
                     title = "Use 24-hour format",
@@ -177,56 +163,5 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
         }
-    }
-}
-
-@Composable
-fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        content()
-    }
-}
-
-@Composable
-fun SwitchSettingItem(
-    icon: ImageVector,
-    title: String,
-    subtitle: String? = null,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange
-        )
     }
 }

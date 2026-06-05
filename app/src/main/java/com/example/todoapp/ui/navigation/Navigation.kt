@@ -107,8 +107,20 @@ fun Navigation(viewModel: TaskViewModel) {
             }
             composable(route = Screen.AddTaskScreen.route) {
                 AddTaskScreen(
-                    onSaveClick = { title, description, priority, locations, attachments ->
-                        viewModel.addTask(title, description, priority, locations, attachments)
+                    onSaveClick = { title, description, date, time, priority, isRecurring, recurrenceType, customInterval, customUnit, locations, attachments ->
+                        viewModel.addTask(
+                            title = title,
+                            description = description,
+                            date = date,
+                            time = time,
+                            priority = priority,
+                            isRecurring = isRecurring,
+                            recurrenceType = recurrenceType,
+                            customInterval = customInterval,
+                            customUnit = customUnit,
+                            locations = locations,
+                            attachments = attachments
+                        )
                         navController.navigate(Screen.TasksScreen.route) {
                             popUpTo(navController.graph.startDestinationId) { inclusive = false }
                             launchSingleTop = true

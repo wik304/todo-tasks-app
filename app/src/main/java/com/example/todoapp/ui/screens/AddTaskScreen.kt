@@ -27,28 +27,65 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import android.net.Uri
+import android.widget.Toast
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.todoapp.data.AttachmentData
 import com.example.todoapp.ui.TaskViewModel
 import com.example.todoapp.ui.components.WheelPicker
+import com.google.gson.Gson
+import androidx.compose.runtime.saveable.Saver
+import com.example.todoapp.ui.components.DoubleTextSection
+import com.example.todoapp.ui.components.TextSection
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalDensity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTaskScreen(
-    onSaveClick: (String, String, Priority, List<LocationData>, List<AttachmentData>) -> Unit,
+    onSaveClick: (
+        title: String,
+        description: String,
+        date: String,
+        time: String,
+        priority: Priority,
+        isRecurring: Boolean,
+        recurrenceType: String,
+        customInterval: Int,
+        customUnit: String,
+        locations: List<LocationData>,
+        attachments: List<AttachmentData>
+    ) -> Unit,
     viewModel: TaskViewModel
 ) {
-    var isRecurring by remember { mutableStateOf(false) }
-    var selectedRecurrenceOption by remember { mutableStateOf("Daily") }
+    val scrollState = rememberScrollState()
 
-    var customInterval by remember { mutableStateOf("1") }
-    var customUnit by remember { mutableStateOf("Days") }
+    val gson = remember { Gson() }
 
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var selectedPriority by remember { mutableStateOf(Priority.MEDIUM) }
+    val locationsSaver = Saver<List<LocationData>, String>(
+        save = { gson.toJson(it) },
+        restore = { gson.fromJson(it, Array<LocationData>::class.java).toList() }
+    )
 
-    val defaultCalendar = remember {
+    val attachmentsSaver = Saver<List<AttachmentData>, String>(
+        save = { gson.toJson(it) },
+        restore = { gson.fromJson(it, Array<AttachmentData>::class.java).toList() }
+    )
+
+    var isRecurring by rememberSaveable { mutableStateOf(false) }
+    var selectedRecurrenceOption by rememberSaveable { mutableStateOf("Daily") }
+
+    var customInterval by rememberSaveable { mutableStateOf("1") }
+    var customUnit by rememberSaveable { mutableStateOf("Days") }
+
+    var title by rememberSaveable { mutableStateOf("") }
+    var description by rememberSaveable { mutableStateOf("") }
+    var selectedPriority by rememberSaveable { mutableStateOf(Priority.MEDIUM) }
+
+    val defaultCalendar = rememberSaveable {
         Calendar.getInstance().apply {
             val now = Calendar.getInstance()
             set(Calendar.HOUR_OF_DAY, 15)
@@ -61,22 +98,37 @@ fun AddTaskScreen(
         }
     }
 
-    var selectedDateMillis by remember { mutableStateOf<Long?>(defaultCalendar.timeInMillis) }
-    var selectedTime by remember { mutableStateOf<Pair<Int, Int>?>(Pair(15, 0)) }
+    var selectedDateMillis by rememberSaveable { mutableStateOf<Long?>(defaultCalendar.timeInMillis) }
+    var selectedTime by rememberSaveable { mutableStateOf<Pair<Int, Int>?>(Pair(15, 0)) }
 
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
+    var showTimePicker by rememberSaveable { mutableStateOf(false) }
 
-    var showMapDialog by remember { mutableStateOf(false) }
-    var selectedLocations by remember { mutableStateOf(listOf<LocationData>()) }
+    var showMapDialog by rememberSaveable { mutableStateOf(false) }
+    var selectedLocations by rememberSaveable(stateSaver = locationsSaver) { mutableStateOf(listOf()) }
 
     val context = LocalContext.current
-    var selectedAttachments by remember { mutableStateOf(listOf<AttachmentData>()) }
+    val focusManager = LocalFocusManager.current
+
+    val isKeyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+
+    LaunchedEffect(isKeyboardOpen) {
+        if (!isKeyboardOpen) {
+            focusManager.clearFocus()
+        }
+    }
+
+    var selectedAttachments by rememberSaveable(stateSaver = attachmentsSaver) { mutableStateOf(listOf()) }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
         val remainingSlots = 10 - selectedAttachments.size
+
+        if (uris.size > remainingSlots) {
+            Toast.makeText(context, "Attachment limit reached (Max 10)", Toast.LENGTH_SHORT).show()
+        }
+
         val filesToAdd = uris.take(remainingSlots)
 
         val newAttachments = filesToAdd.map { uri ->
@@ -105,11 +157,18 @@ fun AddTaskScreen(
                 navigationIcon = {
                     TextButton(
                         onClick = {
+                            focusManager.clearFocus()
+                            isRecurring = false
+                            selectedRecurrenceOption = "Daily"
+                            customInterval = "1"
+                            customUnit = "Days"
                             title = ""
                             description = ""
                             selectedPriority = Priority.MEDIUM
                             selectedDateMillis = defaultCalendar.timeInMillis
                             selectedTime = Pair(15, 0)
+                            selectedLocations = emptyList()
+                            selectedAttachments = emptyList()
                         },
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
@@ -123,7 +182,29 @@ fun AddTaskScreen(
                     TextButton(
                         onClick = {
                             if (title.isNotBlank()) {
-                                onSaveClick(title, description, selectedPriority, selectedLocations, selectedAttachments)
+                                val dateString = selectedDateMillis?.let {
+                                    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(it))
+                                } ?: ""
+
+                                val timeString = selectedTime?.let {
+                                    String.format(Locale.getDefault(), "%02d:%02d", it.first, it.second)
+                                } ?: ""
+
+                                onSaveClick(
+                                    title,
+                                    description,
+                                    dateString,
+                                    timeString,
+                                    selectedPriority,
+                                    isRecurring,
+                                    selectedRecurrenceOption,
+                                    customInterval.toIntOrNull() ?: 1,
+                                    customUnit,
+                                    selectedLocations,
+                                    selectedAttachments
+                                )
+                            } else {
+                                Toast.makeText(context, "Task title is required", Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier.padding(end = 8.dp)
@@ -141,14 +222,12 @@ fun AddTaskScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp, 0.dp)
                 .navigationBarsPadding()
                 .imePadding()
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Task Type", style = MaterialTheme.typography.labelLarge)
+            TextSection(title = "Task Type") {
                 Row(
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -201,85 +280,89 @@ fun AddTaskScreen(
             }
 
             if (isRecurring) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Recurrence", style = MaterialTheme.typography.labelLarge)
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        val recurrenceOptions = listOf("Daily", "Weekly", "Monthly", "Custom")
-                        recurrenceOptions.forEachIndexed { index, option ->
-                            val shape = when (index) {
-                                0 -> RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
-                                recurrenceOptions.lastIndex -> RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
-                                else -> RectangleShape
-                            }
-
-                            FilterChip(
-                                selected = selectedRecurrenceOption == option,
-                                onClick = { selectedRecurrenceOption = option },
-                                label = {
-                                    Text(
-                                        text = option,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        textAlign = TextAlign.Center,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp),
-                                shape = shape,
-                                border = null,
-                                colors = FilterChipDefaults.filterChipColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                                )
-                            )
-                        }
-                    }
-
-                    if (selectedRecurrenceOption == "Custom") {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium,
-                            color = MaterialTheme.colorScheme.surfaceVariant
+                TextSection("Recurrence") {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
+                            val recurrenceOptions = listOf("Daily", "Weekly", "Monthly", "Custom")
+                            recurrenceOptions.forEachIndexed { index, option ->
+                                val shape = when (index) {
+                                    0 -> RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
+                                    recurrenceOptions.lastIndex -> RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
+                                    else -> RectangleShape
+                                }
+
+                                FilterChip(
+                                    selected = selectedRecurrenceOption == option,
+                                    onClick = { selectedRecurrenceOption = option },
+                                    label = {
+                                        Text(
+                                            text = option,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            textAlign = TextAlign.Center,
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp),
+                                    shape = shape,
+                                    border = null,
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                )
+                            }
+                        }
+
+                        if (selectedRecurrenceOption == "Custom") {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.medium,
+                                color = MaterialTheme.colorScheme.surfaceVariant
                             ) {
-                                Text("Repeat every:", style = MaterialTheme.typography.titleMedium)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Repeat every:", style = MaterialTheme.typography.titleMedium)
 
-                                Spacer(modifier = Modifier.width(24.dp))
+                                    Spacer(modifier = Modifier.width(24.dp))
 
-                                val numbers = (1..99).map { it.toString() }
-                                WheelPicker(
-                                    items = numbers,
-                                    modifier = Modifier.width(50.dp),
-                                    onItemSelected = { customInterval = it }
-                                )
+                                    val numbers = (1..99).map { it.toString() }
+                                    WheelPicker(
+                                        items = numbers,
+                                        modifier = Modifier.width(50.dp),
+                                        onItemSelected = { customInterval = it }
+                                    )
 
-                                Spacer(modifier = Modifier.width(16.dp))
+                                    Spacer(modifier = Modifier.width(16.dp))
 
-                                val units = listOf("Days", "Weeks", "Months", "Years")
-                                WheelPicker(
-                                    items = units,
-                                    modifier = Modifier.width(100.dp),
-                                    onItemSelected = { customUnit = it }
-                                )
+                                    val units = listOf("Days", "Weeks", "Months", "Years")
+                                    WheelPicker(
+                                        items = units,
+                                        modifier = Modifier.width(100.dp),
+                                        onItemSelected = { customUnit = it }
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Title", style = MaterialTheme.typography.labelLarge)
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+
+            TextSection("Title") {
                 TextField(
                     value = title,
                     onValueChange = { title = it },
@@ -298,8 +381,7 @@ fun AddTaskScreen(
                 )
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Description", style = MaterialTheme.typography.labelLarge)
+            TextSection("Description") {
                 TextField(
                     value = description,
                     onValueChange = { description = it },
@@ -318,15 +400,14 @@ fun AddTaskScreen(
                 )
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text("Date", style = MaterialTheme.typography.labelLarge)
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+
+            DoubleTextSection(
+                titleLeft = "Date",
+                titleRight = "Time",
+                contentLeft = {
                     Button(
                         onClick = { showDatePicker = true },
                         modifier = Modifier.fillMaxWidth(),
@@ -349,13 +430,8 @@ fun AddTaskScreen(
                             Icon(Icons.Default.CalendarMonth, contentDescription = null)
                         }
                     }
-                }
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text("Time", style = MaterialTheme.typography.labelLarge)
+                },
+                contentRight = {
                     Button(
                         onClick = { showTimePicker = true },
                         modifier = Modifier.fillMaxWidth(),
@@ -379,12 +455,9 @@ fun AddTaskScreen(
                         }
                     }
                 }
-            }
+            )
 
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("Priority", style = MaterialTheme.typography.labelLarge)
+            TextSection("Priority") {
                 Row(
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -422,17 +495,19 @@ fun AddTaskScreen(
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text("Locations", style = MaterialTheme.typography.labelLarge)
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+
+            DoubleTextSection(
+                titleLeft = "Locations",
+                titleRight = "Attachments",
+                contentLeft = {
                     Button(
-                        onClick = { showMapDialog = true },
+                        onClick = {
+                            focusManager.clearFocus()
+                            showMapDialog = true
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -450,15 +525,13 @@ fun AddTaskScreen(
                             Icon(Icons.Default.AddLocation, contentDescription = null)
                         }
                     }
-                }
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text("Attachments", style = MaterialTheme.typography.labelLarge)
+                },
+                contentRight = {
                     Button(
-                        onClick = { launcher.launch("*/*") },
+                        onClick = {
+                            focusManager.clearFocus()
+                            launcher.launch("*/*")
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -477,16 +550,10 @@ fun AddTaskScreen(
                         }
                     }
                 }
-            }
+            )
 
             if (selectedLocations.isNotEmpty()) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = "Added locations (${selectedLocations.size}/5):",
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                TextSection("Added locations (${selectedLocations.size}/5):") {
                     LazyRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -494,6 +561,12 @@ fun AddTaskScreen(
                     ) {
                         items(selectedLocations) { loc ->
                             InputChip(
+                                colors = InputChipDefaults.inputChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    selectedTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
+                                border = null,
                                 selected = true,
                                 onClick = {},
                                 label = {
@@ -509,10 +582,16 @@ fun AddTaskScreen(
                                 },
                                 trailingIcon = {
                                     IconButton(
-                                        onClick = { selectedLocations = selectedLocations - loc },
+                                        onClick = {
+                                            selectedLocations = selectedLocations - loc
+                                        },
                                         modifier = Modifier.size(24.dp)
                                     ) {
-                                        Icon(Icons.Default.Close, contentDescription = "Remove", modifier = Modifier.size(16.dp))
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Remove",
+                                            modifier = Modifier.size(16.dp)
+                                        )
                                     }
                                 }
                             )
@@ -522,11 +601,7 @@ fun AddTaskScreen(
             }
 
             if (selectedAttachments.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = "Added attachments (${selectedAttachments.size}/10):",
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                TextSection("Added attachments (${selectedAttachments.size}/10):") {
                     LazyRow(
                         modifier = Modifier.fillMaxWidth().height(90.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -571,7 +646,7 @@ fun AddTaskScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 
@@ -647,7 +722,7 @@ fun AddTaskScreen(
                     val newLoc = LocationData(lat, lng, radius, addressName)
                     selectedLocations = selectedLocations + newLoc
                 } else {
-                    // Opcjonalnie: Pokaż Snackbar "Limit lokalizacji osiągnięty"
+                    Toast.makeText(context, "Location limit reached (Max 5)", Toast.LENGTH_SHORT).show()
                 }
                 showMapDialog = false
             }

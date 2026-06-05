@@ -1,24 +1,26 @@
 package com.example.todoapp.ui
 
-import androidx.lifecycle.viewModelScope
-import com.example.todoapp.data.LocationData
-import com.example.todoapp.data.RecurrenceMode
-import com.example.todoapp.data.TaskDao
-import com.example.todoapp.data.TaskEntity
-import com.example.todoapp.data.Priority
-import com.google.gson.Gson
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
-import java.util.Calendar
+import android.app.Application
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import androidx.lifecycle.AndroidViewModel
-import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.todoapp.data.AttachmentData
+import com.example.todoapp.data.LocationData
+import com.example.todoapp.data.Priority
+import com.example.todoapp.data.TaskDao
+import com.example.todoapp.data.TaskEntity
+import com.google.gson.Gson
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 enum class TaskFilter { ALL, TODAY, OVERDUE }
 enum class TaskSort { DATE, PRIORITY }
@@ -68,20 +70,49 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
     fun onFilterChange(filter: TaskFilter) { _selectedFilter.value = filter }
     fun onSortChange(sort: TaskSort) { _selectedSort.value = sort }
 
-    fun addTask(title: String, description: String, priority: Priority, locations: List<LocationData>, attachments: List<AttachmentData>) {
+    fun addTask(
+        title: String,
+        description: String,
+        date: String,
+        time: String,
+        priority: Priority,
+        isRecurring: Boolean,
+        recurrenceType: String,
+        customInterval: Int,
+        customUnit: String,
+        locations: List<LocationData>,
+        attachments: List<AttachmentData>
+    ) {
         viewModelScope.launch {
             val gson = Gson()
+
+            var executeAtTimestamp: Long? = null
+            if (date.isNotBlank() && time.isNotBlank()) {
+                try {
+                    val format = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+                    val parsedDate = format.parse("$date $time")
+                    executeAtTimestamp = parsedDate?.time
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
 
             val task = TaskEntity(
                 title = title,
                 description = description,
+                date = date,
+                time = time,
                 createdAt = System.currentTimeMillis(),
-                executeAt = null,
+                executeAt = executeAtTimestamp,
                 isCompleted = false,
-                category = "",
+                category = "Default",
                 priority = priority,
-                locationsJson = gson.toJson(locations),
-                attachmentsJson = gson.toJson(attachments)
+                isRecurring = isRecurring,
+                recurrenceType = recurrenceType,
+                customRecurrenceInterval = customInterval,
+                customRecurrenceUnit = customUnit,
+                locationsJson = if (locations.isNotEmpty()) gson.toJson(locations) else null,
+                attachmentsJson = if (attachments.isNotEmpty()) gson.toJson(attachments) else null
             )
             taskDao.insertTask(task)
         }
@@ -91,27 +122,51 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
         viewModelScope.launch {
             taskDao.updateTask(task.copy(isCompleted = true))
 
-            if (task.recurrence != RecurrenceMode.NONE && task.executeAt != null) {
-                val nextExecuteAt = calculateNextOccurrence(task.executeAt, task.recurrence)
+            if (task.isRecurring && task.executeAt != null) {
+                val nextExecuteAt = calculateNextOccurrence(
+                    task.executeAt,
+                    task.recurrenceType,
+                    task.customRecurrenceInterval,
+                    task.customRecurrenceUnit
+                )
+
+                val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+                val newDateString = dateFormat.format(Date(nextExecuteAt))
+                val newTimeString = timeFormat.format(Date(nextExecuteAt))
 
                 val nextTask = task.copy(
                     id = 0,
                     isCompleted = false,
                     createdAt = System.currentTimeMillis(),
-                    executeAt = nextExecuteAt
+                    executeAt = nextExecuteAt,
+                    date = newDateString,
+                    time = newTimeString
                 )
                 taskDao.insertTask(nextTask)
             }
         }
     }
 
-    private fun calculateNextOccurrence(currentTimestamp: Long, mode: RecurrenceMode): Long {
+    private fun calculateNextOccurrence(
+        currentTimestamp: Long,
+        type: String,
+        customInterval: Int,
+        customUnit: String
+    ): Long {
         val calendar = Calendar.getInstance().apply { timeInMillis = currentTimestamp }
-        when (mode) {
-            RecurrenceMode.DAILY -> calendar.add(Calendar.DAY_OF_YEAR, 1)
-            RecurrenceMode.WEEKLY -> calendar.add(Calendar.WEEK_OF_YEAR, 1)
-            RecurrenceMode.MONTHLY -> calendar.add(Calendar.MONTH, 1)
-            RecurrenceMode.NONE -> {}
+        when (type) {
+            "Daily" -> calendar.add(Calendar.DAY_OF_YEAR, 1)
+            "Weekly" -> calendar.add(Calendar.WEEK_OF_YEAR, 1)
+            "Monthly" -> calendar.add(Calendar.MONTH, 1)
+            "Custom" -> {
+                when (customUnit) {
+                    "Days" -> calendar.add(Calendar.DAY_OF_YEAR, customInterval)
+                    "Weeks" -> calendar.add(Calendar.WEEK_OF_YEAR, customInterval)
+                    "Months" -> calendar.add(Calendar.MONTH, customInterval)
+                    "Years" -> calendar.add(Calendar.YEAR, customInterval)
+                }
+            }
         }
         return calendar.timeInMillis
     }

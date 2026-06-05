@@ -9,12 +9,18 @@ data class TaskEntity(
     val id: Long = 0,
     val title: String,
     val description: String,
-    val createdAt: Long,
-    val executeAt: Long?,
-    val isCompleted: Boolean,
-    val category: String,
+    val date: String,
+    val time: String,
+    val createdAt: Long = System.currentTimeMillis(),
+    val executeAt: Long? = null,
+    val isCompleted: Boolean = false,
+    val category: String = "Default",
     val priority: Priority,
-    val recurrence: RecurrenceMode = RecurrenceMode.NONE,
+    val isRecurring: Boolean,
+    val recurrenceType: String,
+    val customRecurrenceInterval: Int,
+    val customRecurrenceUnit: String,
+    // -----------------------------------
     val locationsJson: String?,
     val attachmentsJson: String?
 )

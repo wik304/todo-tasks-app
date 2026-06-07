@@ -11,7 +11,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.todoapp.ui.components.SwitchSettingItem
@@ -21,20 +20,17 @@ import com.example.todoapp.ui.components.TextSection
 @Composable
 fun SettingsScreen(
     selectedTheme: String,
-    onThemeSelected: (String) -> Unit
+    onThemeSelected: (String) -> Unit,
+    notificationsEnabled: Boolean,
+    onNotificationsToggled: (Boolean) -> Unit,
 ) {
     var keepAwake by remember { mutableStateOf(false) }
     var startOnBoot by remember { mutableStateOf(true) }
 
-    var notificationsEnabled by remember { mutableStateOf(true) }
-    var soundEnabled by remember { mutableStateOf(true) }
-    var vibrateEnabled by remember { mutableStateOf(false) }
-
-    var use24HourFormat by remember { mutableStateOf(true) }
-    var startWeekOnMonday by remember { mutableStateOf(true) }
-
-    var swipeToCompleteEnabled by remember { mutableStateOf(true) }
-    var swipeToDeleteEnabled by remember { mutableStateOf(true) }
+    var notifyOnTime by remember { mutableStateOf(true) }
+    var notifyBefore by remember { mutableStateOf(false) }
+    var notifyBeforeTime by remember { mutableStateOf("15 min") }
+    var disableOnLocation by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -125,40 +121,75 @@ fun SettingsScreen(
                     title = "Enable notifications",
                     subtitle = "Receive alerts for your upcoming tasks",
                     checked = notificationsEnabled,
-                    onCheckedChange = { notificationsEnabled = it }
+                    onCheckedChange = { onNotificationsToggled(it) }
                 )
 
                 if (notificationsEnabled) {
                     SwitchSettingItem(
-                        icon = Icons.Default.VolumeUp,
-                        title = "Play sound",
-                        checked = soundEnabled,
-                        onCheckedChange = { soundEnabled = it }
+                        icon = Icons.Default.AlarmOn,
+                        title = "Notify exactly on time",
+                        subtitle = "Alert me at the exact task time",
+                        checked = notifyOnTime,
+                        onCheckedChange = { notifyOnTime = it }
                     )
+
                     SwitchSettingItem(
-                        icon = Icons.Default.Vibration,
-                        title = "Vibrate",
-                        checked = vibrateEnabled,
-                        onCheckedChange = { vibrateEnabled = it }
+                        icon = Icons.Default.Timer,
+                        title = "Notify beforehand",
+                        subtitle = "Receive an additional early reminder",
+                        checked = notifyBefore,
+                        onCheckedChange = { notifyBefore = it }
+                    )
+
+                    if (notifyBefore) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 0.dp, vertical = 8.dp)
+                        ) {
+                            val timeOptions = listOf("5 min", "15 min", "1 h", "1 day")
+                            timeOptions.forEachIndexed { index, time ->
+                                val shape = when (index) {
+                                    0 -> RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
+                                    timeOptions.lastIndex -> RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
+                                    else -> RectangleShape
+                                }
+
+                                FilterChip(
+                                    selected = notifyBeforeTime == time,
+                                    onClick = { notifyBeforeTime = time },
+                                    label = {
+                                        Text(
+                                            text = time,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            textAlign = TextAlign.Center,
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(40.dp),
+                                    shape = shape,
+                                    border = null,
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    SwitchSettingItem(
+                        icon = Icons.Default.LocationOff,
+                        title = "Mute in location zones",
+                        subtitle = "Disable alerts when you enter a task's location",
+                        checked = disableOnLocation,
+                        onCheckedChange = { disableOnLocation = it }
                     )
                 }
-            }
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-            TextSection(title = "User Preferences") {
-                SwitchSettingItem(
-                    icon = Icons.Default.Schedule,
-                    title = "Use 24-hour format",
-                    checked = use24HourFormat,
-                    onCheckedChange = { use24HourFormat = it }
-                )
-                SwitchSettingItem(
-                    icon = Icons.Default.CalendarToday,
-                    title = "Start week on Monday",
-                    checked = startWeekOnMonday,
-                    onCheckedChange = { startWeekOnMonday = it }
-                )
             }
 
             Spacer(modifier = Modifier.height(4.dp))

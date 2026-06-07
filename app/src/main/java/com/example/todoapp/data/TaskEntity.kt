@@ -20,13 +20,8 @@ data class TaskEntity(
     val recurrenceType: String,
     val customRecurrenceInterval: Int,
     val customRecurrenceUnit: String,
-    // -----------------------------------
     val locationsJson: String?,
     val attachmentsJson: String?
 )
 
 enum class Priority { LOW, MEDIUM, HIGH }
-
-enum class RecurrenceMode {
-    NONE, DAILY, WEEKLY, MONTHLY
-}

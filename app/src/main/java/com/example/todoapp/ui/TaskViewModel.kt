@@ -14,6 +14,7 @@ import com.example.todoapp.data.LocationData
 import com.example.todoapp.data.Priority
 import com.example.todoapp.data.TaskDao
 import com.example.todoapp.data.TaskEntity
+import com.example.todoapp.receiver.NotificationScheduler
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -26,6 +27,16 @@ enum class TaskFilter { ALL, TODAY, OVERDUE }
 enum class TaskSort { DATE, PRIORITY }
 
 class TaskViewModel(application: Application, private val taskDao: TaskDao) : AndroidViewModel(application) {
+
+    private val sharedPrefs = application.getSharedPreferences("todo_settings", Context.MODE_PRIVATE)
+
+    var notificationsEnabled by mutableStateOf(sharedPrefs.getBoolean("notifications_enabled", true))
+        private set
+
+    fun toggleNotifications(enabled: Boolean) {
+        notificationsEnabled = enabled
+        sharedPrefs.edit().putBoolean("notifications_enabled", enabled).apply()
+    }
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
@@ -114,7 +125,60 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
                 locationsJson = if (locations.isNotEmpty()) gson.toJson(locations) else null,
                 attachmentsJson = if (attachments.isNotEmpty()) gson.toJson(attachments) else null
             )
-            taskDao.insertTask(task)
+            val generatedId = taskDao.insertTask(task)
+            val savedTask = task.copy(id = generatedId)
+            NotificationScheduler.scheduleNotification(getApplication(), savedTask, delayMinutes = 0)
+        }
+    }
+
+    fun updateTaskDetails(
+        id: Long,
+        title: String,
+        description: String,
+        date: String,
+        time: String,
+        priority: Priority,
+        isRecurring: Boolean,
+        recurrenceType: String,
+        customInterval: Int,
+        customUnit: String,
+        locations: List<LocationData>,
+        attachments: List<AttachmentData>
+    ) {
+        viewModelScope.launch {
+            val gson = Gson()
+
+            var executeAtTimestamp: Long? = null
+            if (date.isNotBlank() && time.isNotBlank()) {
+                try {
+                    val format = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+                    val parsedDate = format.parse("$date $time")
+                    executeAtTimestamp = parsedDate?.time
+                } catch (e: Exception) { e.printStackTrace() }
+            }
+
+            val updatedTask = TaskEntity(
+                id = id,
+                title = title,
+                description = description,
+                date = date,
+                time = time,
+                createdAt = System.currentTimeMillis(),
+                executeAt = executeAtTimestamp,
+                isCompleted = false,
+                category = "Default",
+                priority = priority,
+                isRecurring = isRecurring,
+                recurrenceType = recurrenceType,
+                customRecurrenceInterval = customInterval,
+                customRecurrenceUnit = customUnit,
+                locationsJson = if (locations.isNotEmpty()) gson.toJson(locations) else null,
+                attachmentsJson = if (attachments.isNotEmpty()) gson.toJson(attachments) else null
+            )
+            taskDao.updateTask(updatedTask)
+
+            NotificationScheduler.cancelNotification(getApplication(), updatedTask.id)
+            NotificationScheduler.scheduleNotification(getApplication(), updatedTask, delayMinutes = 0)
         }
     }
 
@@ -143,8 +207,11 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
                     date = newDateString,
                     time = newTimeString
                 )
-                taskDao.insertTask(nextTask)
+                val nextId = taskDao.insertTask(nextTask)
+                val scheduledNextTask = nextTask.copy(id = nextId)
+                NotificationScheduler.scheduleNotification(getApplication(), scheduledNextTask, delayMinutes = 0)
             }
+            NotificationScheduler.cancelNotification(getApplication(), task.id)
         }
     }
 
@@ -174,6 +241,7 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
     fun deleteTask(task: TaskEntity) {
         viewModelScope.launch {
             taskDao.deleteTask(task)
+            NotificationScheduler.cancelNotification(getApplication(), task.id)
         }
     }
 

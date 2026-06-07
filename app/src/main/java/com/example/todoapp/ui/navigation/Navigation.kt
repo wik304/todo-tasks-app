@@ -16,6 +16,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -97,17 +98,26 @@ fun Navigation(viewModel: TaskViewModel) {
                 .imePadding()
         ) {
             composable(route = Screen.TasksScreen.route) {
-                TasksScreen(viewModel = viewModel)
+                TasksScreen(
+                    viewModel = viewModel,
+                    onEditClick = { taskId ->
+                        navController.navigate("edit_task/$taskId")
+                    }
+                )
             }
+
             composable(route = Screen.SettingsScreen.route) {
                 SettingsScreen(
                     selectedTheme = viewModel.appTheme,
-                    onThemeSelected = { newTheme -> viewModel.updateTheme(newTheme) }
+                    onThemeSelected = { newTheme -> viewModel.updateTheme(newTheme) },
+                    notificationsEnabled = viewModel.notificationsEnabled,
+                    onNotificationsToggled = { viewModel.toggleNotifications(it) },
                 )
             }
+
             composable(route = Screen.AddTaskScreen.route) {
                 AddTaskScreen(
-                    onSaveClick = { title, description, date, time, priority, isRecurring, recurrenceType, customInterval, customUnit, locations, attachments ->
+                    onSaveClick = { _, title, description, date, time, priority, isRecurring, recurrenceType, customInterval, customUnit, locations, attachments ->
                         viewModel.addTask(
                             title = title,
                             description = description,
@@ -128,6 +138,25 @@ fun Navigation(viewModel: TaskViewModel) {
                     },
                     viewModel = viewModel
                 )
+            }
+            composable(route = "edit_task/{taskId}") { backStackEntry ->
+                val taskId = backStackEntry.arguments?.getString("taskId")?.toLongOrNull()
+                val tasks by viewModel.tasksState.collectAsState()
+
+                val taskToEdit = tasks.find { it.id == taskId }
+
+                if (taskToEdit != null) {
+                    AddTaskScreen(
+                        taskToEdit = taskToEdit,
+                        onSaveClick = { id, title, description, date, time, priority, isRecurring, recurrenceType, customInterval, customUnit, locations, attachments ->
+                            if (id != null) {
+                                viewModel.updateTaskDetails(id, title, description, date, time, priority, isRecurring, recurrenceType, customInterval, customUnit, locations, attachments)
+                            }
+                            navController.popBackStack()
+                        },
+                        viewModel = viewModel
+                    )
+                }
             }
         }
     }

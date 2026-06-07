@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -71,6 +72,7 @@ import com.example.todoapp.data.LocationData
 import com.example.todoapp.data.Priority
 import com.example.todoapp.data.TaskEntity
 import com.google.gson.Gson
+import androidx.compose.foundation.layout.FlowRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +80,7 @@ fun TaskItem(
     task: TaskEntity,
     onComplete: () -> Unit,
     onDelete: () -> Unit,
+    onEdit: () -> Unit,
     modifier: Modifier = Modifier,
     swipeToCompleteEnabled: Boolean = true,
     swipeToDeleteEnabled: Boolean = true
@@ -227,9 +230,9 @@ fun TaskItem(
                                     color = if (task.isCompleted) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
                                 )
 
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
+                                FlowRow(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
                                     modifier = Modifier.padding(top = 6.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -245,6 +248,30 @@ fun TaskItem(
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
+                                    }
+
+                                    if (task.isRecurring) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.Repeat,
+                                                contentDescription = "Recurring task",
+                                                modifier = Modifier.size(14.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+
+                                            val recurrenceText = if (task.recurrenceType == "Custom") {
+                                                "Every ${task.customRecurrenceInterval} ${task.customRecurrenceUnit}"
+                                            } else {
+                                                task.recurrenceType
+                                            }
+
+                                            Text(
+                                                text = recurrenceText,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
 
                                     if (!expanded) {
@@ -424,7 +451,7 @@ fun TaskItem(
                             ) {
                                 TextButton(
                                     onClick = {
-                                        Toast.makeText(context, "Delete clicked!", Toast.LENGTH_SHORT).show()
+                                        onDelete()
                                     },
                                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                                 ) {
@@ -439,7 +466,7 @@ fun TaskItem(
 
                                 TextButton(
                                     onClick = {
-                                        Toast.makeText(context, "Complete clicked!", Toast.LENGTH_SHORT).show()
+                                        onComplete()
                                     },
                                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                                 ) {
@@ -454,7 +481,7 @@ fun TaskItem(
 
                                 TextButton(
                                     onClick = {
-                                        Toast.makeText(context, "Edit clicked!", Toast.LENGTH_SHORT).show()
+                                        onEdit()
                                     },
                                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                                 ) {

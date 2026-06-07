@@ -42,11 +42,14 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalDensity
+import com.example.todoapp.data.TaskEntity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTaskScreen(
+    taskToEdit: TaskEntity? = null,
     onSaveClick: (
+        id: Long?,
         title: String,
         description: String,
         date: String,
@@ -75,15 +78,14 @@ fun AddTaskScreen(
         restore = { gson.fromJson(it, Array<AttachmentData>::class.java).toList() }
     )
 
-    var isRecurring by rememberSaveable { mutableStateOf(false) }
-    var selectedRecurrenceOption by rememberSaveable { mutableStateOf("Daily") }
+    var isRecurring by rememberSaveable { mutableStateOf(taskToEdit?.isRecurring ?: false) }
+    var selectedRecurrenceOption by rememberSaveable { mutableStateOf(taskToEdit?.recurrenceType ?: "Daily") }
+    var customInterval by rememberSaveable { mutableStateOf(taskToEdit?.customRecurrenceInterval?.toString() ?: "1") }
+    var customUnit by rememberSaveable { mutableStateOf(taskToEdit?.customRecurrenceUnit ?: "Days") }
 
-    var customInterval by rememberSaveable { mutableStateOf("1") }
-    var customUnit by rememberSaveable { mutableStateOf("Days") }
-
-    var title by rememberSaveable { mutableStateOf("") }
-    var description by rememberSaveable { mutableStateOf("") }
-    var selectedPriority by rememberSaveable { mutableStateOf(Priority.MEDIUM) }
+    var title by rememberSaveable { mutableStateOf(taskToEdit?.title ?: "") }
+    var description by rememberSaveable { mutableStateOf(taskToEdit?.description ?: "") }
+    var selectedPriority by rememberSaveable { mutableStateOf(taskToEdit?.priority ?: Priority.MEDIUM) }
 
     val defaultCalendar = rememberSaveable {
         Calendar.getInstance().apply {
@@ -98,15 +100,39 @@ fun AddTaskScreen(
         }
     }
 
-    var selectedDateMillis by rememberSaveable { mutableStateOf<Long?>(defaultCalendar.timeInMillis) }
-    var selectedTime by rememberSaveable { mutableStateOf<Pair<Int, Int>?>(Pair(15, 0)) }
+    var selectedDateMillis by rememberSaveable {
+        mutableStateOf(
+            if (taskToEdit?.date?.isNotBlank() == true) {
+                try {
+                    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(taskToEdit.date)?.time
+                } catch (e: Exception) { defaultCalendar.timeInMillis }
+            } else defaultCalendar.timeInMillis
+        )
+    }
+
+    var selectedTime by rememberSaveable {
+        mutableStateOf(
+            if (taskToEdit?.time?.isNotBlank() == true) {
+                try {
+                    val parts = taskToEdit.time.split(":")
+                    Pair(parts[0].toInt(), parts[1].toInt())
+                } catch (e: Exception) { Pair(15, 0) }
+            } else Pair(15, 0)
+        )
+    }
 
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     var showTimePicker by rememberSaveable { mutableStateOf(false) }
 
     var showMapDialog by rememberSaveable { mutableStateOf(false) }
-    var selectedLocations by rememberSaveable(stateSaver = locationsSaver) { mutableStateOf(listOf()) }
 
+    var selectedLocations by rememberSaveable(stateSaver = locationsSaver) {
+        mutableStateOf(
+            if (!taskToEdit?.locationsJson.isNullOrEmpty() && taskToEdit?.locationsJson != "[]") {
+                gson.fromJson(taskToEdit.locationsJson, Array<LocationData>::class.java).toList()
+            } else emptyList()
+        )
+    }
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
@@ -118,7 +144,13 @@ fun AddTaskScreen(
         }
     }
 
-    var selectedAttachments by rememberSaveable(stateSaver = attachmentsSaver) { mutableStateOf(listOf()) }
+    var selectedAttachments by rememberSaveable(stateSaver = attachmentsSaver) {
+        mutableStateOf(
+            if (!taskToEdit?.attachmentsJson.isNullOrEmpty() && taskToEdit?.attachmentsJson != "[]") {
+                gson.fromJson(taskToEdit.attachmentsJson, Array<AttachmentData>::class.java).toList()
+            } else emptyList()
+        )
+    }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
@@ -150,32 +182,34 @@ fun AddTaskScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = "Add New Task",
+                        text = if (taskToEdit == null) "Add New Task" else "Edit Task",
                         style = MaterialTheme.typography.titleMedium
                     )
                 },
                 navigationIcon = {
-                    TextButton(
-                        onClick = {
-                            focusManager.clearFocus()
-                            isRecurring = false
-                            selectedRecurrenceOption = "Daily"
-                            customInterval = "1"
-                            customUnit = "Days"
-                            title = ""
-                            description = ""
-                            selectedPriority = Priority.MEDIUM
-                            selectedDateMillis = defaultCalendar.timeInMillis
-                            selectedTime = Pair(15, 0)
-                            selectedLocations = emptyList()
-                            selectedAttachments = emptyList()
-                        },
-                        modifier = Modifier.padding(start = 8.dp)
-                    ) {
-                        Text(
-                            text = "Clear",
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                    if (taskToEdit == null) {
+                        TextButton(
+                            onClick = {
+                                focusManager.clearFocus()
+                                isRecurring = false
+                                selectedRecurrenceOption = "Daily"
+                                customInterval = "1"
+                                customUnit = "Days"
+                                title = ""
+                                description = ""
+                                selectedPriority = Priority.MEDIUM
+                                selectedDateMillis = defaultCalendar.timeInMillis
+                                selectedTime = Pair(15, 0)
+                                selectedLocations = emptyList()
+                                selectedAttachments = emptyList()
+                            },
+                            modifier = Modifier.padding(start = 8.dp)
+                        ) {
+                            Text(
+                                text = "Clear",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
                     }
                 },
                 actions = {
@@ -191,6 +225,7 @@ fun AddTaskScreen(
                                 } ?: ""
 
                                 onSaveClick(
+                                    taskToEdit?.id,
                                     title,
                                     description,
                                     dateString,
@@ -337,18 +372,24 @@ fun AddTaskScreen(
                                     Spacer(modifier = Modifier.width(24.dp))
 
                                     val numbers = (1..99).map { it.toString() }
+                                    val initialNumberIndex = numbers.indexOf(customInterval).coerceAtLeast(0)
+
                                     WheelPicker(
                                         items = numbers,
                                         modifier = Modifier.width(50.dp),
+                                        initialIndex = initialNumberIndex,
                                         onItemSelected = { customInterval = it }
                                     )
 
                                     Spacer(modifier = Modifier.width(16.dp))
 
                                     val units = listOf("Days", "Weeks", "Months", "Years")
+                                    val initialUnitIndex = units.indexOf(customUnit).coerceAtLeast(0)
+
                                     WheelPicker(
                                         items = units,
                                         modifier = Modifier.width(100.dp),
+                                        initialIndex = initialUnitIndex,
                                         onItemSelected = { customUnit = it }
                                     )
                                 }

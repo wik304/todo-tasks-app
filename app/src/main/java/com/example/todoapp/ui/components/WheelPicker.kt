@@ -27,10 +27,12 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun WheelPicker(
     items: List<String>,
+    initialIndex: Int = 0,
     modifier: Modifier = Modifier,
     onItemSelected: (String) -> Unit
 ) {
-    val listState = rememberLazyListState()
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
+
     val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
 
     val nestedScrollConnection = remember {

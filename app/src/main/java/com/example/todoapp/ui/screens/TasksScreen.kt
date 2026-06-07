@@ -47,7 +47,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 
 @Composable
-fun TasksScreen(viewModel: TaskViewModel) {
+fun TasksScreen(
+    viewModel: TaskViewModel,
+    onEditClick: (Long) -> Unit
+    ) {
     val focusManager = LocalFocusManager.current
 
     val isKeyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
@@ -171,7 +174,8 @@ fun TasksScreen(viewModel: TaskViewModel) {
                     TaskItem(
                         task = task,
                         onComplete = { viewModel.markAsCompleted(task) },
-                        onDelete = { viewModel.deleteTask(task) }
+                        onDelete = { viewModel.deleteTask(task) },
+                        onEdit = { onEditClick(task.id) }
                     )
                 }
             }

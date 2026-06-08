@@ -112,6 +112,16 @@ fun Navigation(viewModel: TaskViewModel) {
                     onThemeSelected = { newTheme -> viewModel.updateTheme(newTheme) },
                     notificationsEnabled = viewModel.notificationsEnabled,
                     onNotificationsToggled = { viewModel.toggleNotifications(it) },
+                    notifyBefore = viewModel.notifyBefore,
+                    onNotifyBeforeToggled = { viewModel.toggleNotifyBefore(it) },
+                    notifyBeforeTime = viewModel.notifyBeforeTime,
+                    onNotifyBeforeTimeSelected = { viewModel.updateNotifyBeforeTime(it) },
+                    locationNotificationsEnabled = viewModel.locationNotificationsEnabled,
+                    onLocationNotificationsToggled = { viewModel.toggleLocationNotifications(it) },
+                    keepAwake = viewModel.keepAwake,
+                    onKeepAwakeToggled = { viewModel.toggleKeepAwake(it) },
+                    startOnBoot = viewModel.startOnBoot,
+                    onStartOnBootToggled = { viewModel.toggleStartOnBoot(it) }
                 )
             }
 

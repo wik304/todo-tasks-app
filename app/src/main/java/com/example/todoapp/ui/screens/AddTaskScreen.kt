@@ -1,7 +1,10 @@
 package com.example.todoapp.ui.screens
 
+import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -12,37 +15,33 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.todoapp.data.AttachmentData
 import com.example.todoapp.data.LocationData
 import com.example.todoapp.data.Priority
+import com.example.todoapp.data.TaskEntity
+import com.example.todoapp.ui.TaskViewModel
+import com.example.todoapp.ui.components.DoubleTextSection
 import com.example.todoapp.ui.components.MapSelectionDialog
+import com.example.todoapp.ui.components.TextSection
+import com.example.todoapp.ui.components.WheelPicker
+import com.google.gson.Gson
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import android.net.Uri
-import android.widget.Toast
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.style.TextOverflow
-import com.example.todoapp.data.AttachmentData
-import com.example.todoapp.ui.TaskViewModel
-import com.example.todoapp.ui.components.WheelPicker
-import com.google.gson.Gson
-import androidx.compose.runtime.saveable.Saver
-import com.example.todoapp.ui.components.DoubleTextSection
-import com.example.todoapp.ui.components.TextSection
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.ime
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.platform.LocalDensity
-import com.example.todoapp.data.TaskEntity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -257,6 +256,11 @@ fun AddTaskScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = {
+                        focusManager.clearFocus()
+                    })
+                }
                 .navigationBarsPadding()
                 .imePadding()
                 .verticalScroll(scrollState),

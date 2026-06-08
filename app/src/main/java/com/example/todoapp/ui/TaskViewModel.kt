@@ -12,8 +12,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.todoapp.data.AttachmentData
 import com.example.todoapp.data.LocationData
 import com.example.todoapp.data.Priority
+import com.example.todoapp.data.RecurrenceHelper
 import com.example.todoapp.data.TaskDao
 import com.example.todoapp.data.TaskEntity
+import com.example.todoapp.receiver.GeofenceManager
 import com.example.todoapp.receiver.NotificationScheduler
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.*
@@ -36,6 +38,46 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
     fun toggleNotifications(enabled: Boolean) {
         notificationsEnabled = enabled
         sharedPrefs.edit().putBoolean("notifications_enabled", enabled).apply()
+    }
+
+    var keepAwake by mutableStateOf(sharedPrefs.getBoolean("keep_awake", false))
+        private set
+
+    fun toggleKeepAwake(enabled: Boolean) {
+        keepAwake = enabled
+        sharedPrefs.edit().putBoolean("keep_awake", enabled).apply()
+    }
+
+    var startOnBoot by mutableStateOf(sharedPrefs.getBoolean("start_on_boot", true))
+        private set
+
+    fun toggleStartOnBoot(enabled: Boolean) {
+        startOnBoot = enabled
+        sharedPrefs.edit().putBoolean("start_on_boot", enabled).apply()
+    }
+
+    var notifyBefore by mutableStateOf(sharedPrefs.getBoolean("notify_before", false))
+        private set
+
+    var notifyBeforeTime by mutableStateOf(sharedPrefs.getString("notify_before_time", "15 min") ?: "15 min")
+        private set
+
+    fun toggleNotifyBefore(enabled: Boolean) {
+        notifyBefore = enabled
+        sharedPrefs.edit().putBoolean("notify_before", enabled).apply()
+    }
+
+    fun updateNotifyBeforeTime(time: String) {
+        notifyBeforeTime = time
+        sharedPrefs.edit().putString("notify_before_time", time).apply()
+    }
+
+    var locationNotificationsEnabled by mutableStateOf(sharedPrefs.getBoolean("location_notifications_enabled", true))
+        private set
+
+    fun toggleLocationNotifications(enabled: Boolean) {
+        locationNotificationsEnabled = enabled
+        sharedPrefs.edit().putBoolean("location_notifications_enabled", enabled).apply()
     }
 
     private val _searchQuery = MutableStateFlow("")
@@ -128,6 +170,7 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
             val generatedId = taskDao.insertTask(task)
             val savedTask = task.copy(id = generatedId)
             NotificationScheduler.scheduleNotification(getApplication(), savedTask, delayMinutes = 0)
+            GeofenceManager.addGeofencesForTask(getApplication(), savedTask)
         }
     }
 
@@ -179,6 +222,8 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
 
             NotificationScheduler.cancelNotification(getApplication(), updatedTask.id)
             NotificationScheduler.scheduleNotification(getApplication(), updatedTask, delayMinutes = 0)
+            GeofenceManager.removeGeofencesForTask(getApplication(), updatedTask.id)
+            GeofenceManager.addGeofencesForTask(getApplication(), updatedTask)
         }
     }
 
@@ -186,8 +231,11 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
         viewModelScope.launch {
             taskDao.updateTask(task.copy(isCompleted = true))
 
+            NotificationScheduler.cancelNotification(getApplication(), task.id)
+            GeofenceManager.removeGeofencesForTask(getApplication(), task.id)
+
             if (task.isRecurring && task.executeAt != null) {
-                val nextExecuteAt = calculateNextOccurrence(
+                val nextExecuteAt = RecurrenceHelper.calculateNextOccurrence(
                     task.executeAt,
                     task.recurrenceType,
                     task.customRecurrenceInterval,
@@ -196,22 +244,24 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
 
                 val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                 val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-                val newDateString = dateFormat.format(Date(nextExecuteAt))
-                val newTimeString = timeFormat.format(Date(nextExecuteAt))
 
                 val nextTask = task.copy(
                     id = 0,
                     isCompleted = false,
                     createdAt = System.currentTimeMillis(),
                     executeAt = nextExecuteAt,
-                    date = newDateString,
-                    time = newTimeString
+                    date = dateFormat.format(Date(nextExecuteAt)),
+                    time = timeFormat.format(Date(nextExecuteAt))
                 )
+
                 val nextId = taskDao.insertTask(nextTask)
-                val scheduledNextTask = nextTask.copy(id = nextId)
-                NotificationScheduler.scheduleNotification(getApplication(), scheduledNextTask, delayMinutes = 0)
+                val savedNextTask = nextTask.copy(id = nextId)
+
+                NotificationScheduler.scheduleNotification(getApplication(), savedNextTask)
+                if (locationNotificationsEnabled) {
+                    GeofenceManager.addGeofencesForTask(getApplication(), savedNextTask)
+                }
             }
-            NotificationScheduler.cancelNotification(getApplication(), task.id)
         }
     }
 
@@ -242,6 +292,7 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
         viewModelScope.launch {
             taskDao.deleteTask(task)
             NotificationScheduler.cancelNotification(getApplication(), task.id)
+            GeofenceManager.removeGeofencesForTask(getApplication(), task.id)
         }
     }
 

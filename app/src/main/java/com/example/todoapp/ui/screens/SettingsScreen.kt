@@ -23,14 +23,18 @@ fun SettingsScreen(
     onThemeSelected: (String) -> Unit,
     notificationsEnabled: Boolean,
     onNotificationsToggled: (Boolean) -> Unit,
+    notifyBefore: Boolean,
+    onNotifyBeforeToggled: (Boolean) -> Unit,
+    notifyBeforeTime: String,
+    onNotifyBeforeTimeSelected: (String) -> Unit,
+    locationNotificationsEnabled: Boolean,
+    onLocationNotificationsToggled: (Boolean) -> Unit,
+    keepAwake: Boolean,
+    onKeepAwakeToggled: (Boolean) -> Unit,
+    startOnBoot: Boolean,
+    onStartOnBootToggled: (Boolean) -> Unit
 ) {
-    var keepAwake by remember { mutableStateOf(false) }
-    var startOnBoot by remember { mutableStateOf(true) }
-
     var notifyOnTime by remember { mutableStateOf(true) }
-    var notifyBefore by remember { mutableStateOf(false) }
-    var notifyBeforeTime by remember { mutableStateOf("15 min") }
-    var disableOnLocation by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -102,14 +106,14 @@ fun SettingsScreen(
                     title = "Keep screen awake",
                     subtitle = "Prevent screen from turning off while using the app",
                     checked = keepAwake,
-                    onCheckedChange = { keepAwake = it }
+                    onCheckedChange = { onKeepAwakeToggled(it) }
                 )
                 SwitchSettingItem(
                     icon = Icons.Default.RocketLaunch,
                     title = "Start on boot",
                     subtitle = "Initialize background tasks when device starts",
                     checked = startOnBoot,
-                    onCheckedChange = { startOnBoot = it }
+                    onCheckedChange = { onStartOnBootToggled(it) }
                 )
             }
 
@@ -138,7 +142,7 @@ fun SettingsScreen(
                         title = "Notify beforehand",
                         subtitle = "Receive an additional early reminder",
                         checked = notifyBefore,
-                        onCheckedChange = { notifyBefore = it }
+                        onCheckedChange = { onNotifyBeforeToggled(it) }
                     )
 
                     if (notifyBefore) {
@@ -157,7 +161,7 @@ fun SettingsScreen(
 
                                 FilterChip(
                                     selected = notifyBeforeTime == time,
-                                    onClick = { notifyBeforeTime = time },
+                                    onClick = { onNotifyBeforeTimeSelected(time) },
                                     label = {
                                         Text(
                                             text = time,
@@ -183,11 +187,11 @@ fun SettingsScreen(
                     }
 
                     SwitchSettingItem(
-                        icon = Icons.Default.LocationOff,
-                        title = "Mute in location zones",
-                        subtitle = "Disable alerts when you enter a task's location",
-                        checked = disableOnLocation,
-                        onCheckedChange = { disableOnLocation = it }
+                        icon = Icons.Default.LocationOn,
+                        title = "Location notifications",
+                        subtitle = "Notify me when I arrive at a task's location",
+                        checked = locationNotificationsEnabled,
+                        onCheckedChange = { onLocationNotificationsToggled(it) }
                     )
                 }
             }

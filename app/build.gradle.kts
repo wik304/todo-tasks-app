@@ -64,6 +64,7 @@ dependencies {
     implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.compose.foundation)
+    implementation(libs.protolite.well.known.types)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -82,4 +83,5 @@ dependencies {
     implementation(libs.maps.compose.v2140)
     implementation(libs.androidx.material3)
     implementation(libs.gson)
+    implementation(libs.play.services.location.v2120)
 }

@@ -24,19 +24,34 @@ import com.example.todoapp.data.TaskDatabase
 import com.example.todoapp.ui.navigation.Navigation
 import com.example.todoapp.ui.TaskViewModel
 import com.example.todoapp.ui.theme.ToDoAppTheme
+import android.view.WindowManager
+import android.app.Activity
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+
+@Composable
+fun KeepScreenOnEffect(keepAwake: Boolean) {
+    val context = LocalContext.current
+    val activity = context as? Activity
+
+    DisposableEffect(keepAwake) {
+        if (keepAwake) {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val db = Room.databaseBuilder(
-            applicationContext,
-            TaskDatabase::class.java, "task-database"
-        )
-            .fallbackToDestructiveMigration(false)
-            .build()
-
+        val db = TaskDatabase.getDatabase(applicationContext)
         val taskDao = db.taskDao()
 
         val viewModelFactory = object : ViewModelProvider.Factory {
@@ -47,25 +62,34 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            val permissionLauncher = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.RequestPermission(),
-                onResult = { isGranted ->
-                    if (isGranted) {
+            val context = LocalContext.current
+            val viewModel: TaskViewModel = viewModel(factory = viewModelFactory)
 
-                    }
-                }
+            KeepScreenOnEffect(keepAwake = viewModel.keepAwake)
+
+            val multiplePermissionsLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestMultiplePermissions(),
+                onResult = { _ -> }
             )
 
-            val context = LocalContext.current
             LaunchedEffect(Unit) {
+                val permissionsToRequest = mutableListOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    }
+                    permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+                }
+
+                val permissionsNotGranted = permissionsToRequest.filter {
+                    ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+                }
+
+                if (permissionsNotGranted.isNotEmpty()) {
+                    multiplePermissionsLauncher.launch(permissionsNotGranted.toTypedArray())
                 }
             }
-
-            val viewModel: TaskViewModel = viewModel(factory = viewModelFactory)
 
             ToDoAppTheme(themeMode = viewModel.appTheme) {
                 Surface(

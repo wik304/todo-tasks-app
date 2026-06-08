@@ -39,7 +39,7 @@ class TaskNotificationReceiver : BroadcastReceiver() {
 
         val notificationBuilder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle("Task to complete: $taskTitle")
+            .setContentTitle(taskTitle)
             .setContentText(taskDesc)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)

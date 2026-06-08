@@ -24,4 +24,7 @@ interface TaskDao {
 
     @Query("SELECT * FROM tasks WHERE priority = 'HIGH' AND isCompleted = 0")
     fun getHighPriorityPendingTasks(): Flow<List<TaskEntity>>
+
+    @Query("SELECT * FROM tasks")
+    fun getAllTasksSynchronously(): List<TaskEntity>
 }

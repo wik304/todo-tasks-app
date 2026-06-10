@@ -10,6 +10,8 @@ import androidx.annotation.RequiresPermission
 import com.example.todoapp.data.TaskEntity
 
 object NotificationScheduler {
+    private const val BEFOREHAND_ID_OFFSET = 1000000
+
     @RequiresPermission(Manifest.permission.SCHEDULE_EXACT_ALARM)
     @SuppressLint("ScheduleExactAlarm")
     fun scheduleNotification(context: Context, task: TaskEntity, delayMinutes: Long = 0) {
@@ -64,7 +66,7 @@ object NotificationScheduler {
 
                 val pendingIntentEarly = PendingIntent.getBroadcast(
                     context,
-                    task.id.toInt() + 5000,
+                    task.id.toInt() + BEFOREHAND_ID_OFFSET,
                     intentEarly,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
@@ -95,7 +97,7 @@ object NotificationScheduler {
 
         val pendingIntentEarly = PendingIntent.getBroadcast(
             context,
-            taskId.toInt() + 5000,
+            taskId.toInt() + BEFOREHAND_ID_OFFSET,
             intent,
             PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
         )

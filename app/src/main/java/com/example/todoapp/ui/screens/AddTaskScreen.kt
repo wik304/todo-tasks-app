@@ -1,5 +1,6 @@
 package com.example.todoapp.ui.screens
 
+import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -152,7 +153,7 @@ fun AddTaskScreen(
     }
 
     val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
+        contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
         val remainingSlots = 10 - selectedAttachments.size
 
@@ -163,6 +164,15 @@ fun AddTaskScreen(
         val filesToAdd = uris.take(remainingSlots)
 
         val newAttachments = filesToAdd.map { uri ->
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
             val fileName = viewModel.getFileName(context, uri)
             val mimeType = context.contentResolver.getType(uri) ?: ""
             val type = when {
@@ -575,7 +585,7 @@ fun AddTaskScreen(
                     Button(
                         onClick = {
                             focusManager.clearFocus()
-                            launcher.launch("*/*")
+                            launcher.launch(arrayOf("*/*"))
                         },
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),

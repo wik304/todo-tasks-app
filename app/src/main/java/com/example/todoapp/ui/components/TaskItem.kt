@@ -358,7 +358,7 @@ fun TaskItem(
                                                         val browserUri = "https://www.google.com/maps/dir/?api=1&destination=${Uri.encode(loc.name)}".toUri()
                                                         val browserIntent = Intent(Intent.ACTION_VIEW, browserUri)
                                                         context.startActivity(browserIntent)
-                                                    } catch (err: Exception) {
+                                                    } catch (_: Exception) {
                                                         Toast.makeText(context, "Can not open map", Toast.LENGTH_SHORT).show()
                                                     }
                                                 }
@@ -394,19 +394,25 @@ fun TaskItem(
                                         Card(
                                             onClick = {
                                                 try {
-                                                    val mimeType = when (file.type) {
+                                                    val uri = file.uriString.toUri()
+                                                    val systemMimeType = context.contentResolver.getType(uri) ?: when (file.type) {
                                                         "IMAGE" -> "image/*"
                                                         "PDF" -> "application/pdf"
                                                         "AUDIO" -> "audio/*"
                                                         else -> "*/*"
                                                     }
+
                                                     val intent = Intent(Intent.ACTION_VIEW).apply {
-                                                        setDataAndType(file.uriString.toUri(), mimeType)
+                                                        setDataAndType(uri, systemMimeType)
                                                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                        addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
                                                     }
+
                                                     context.startActivity(intent)
-                                                } catch (_: Exception) {
-                                                    Toast.makeText(context, "Could not open attachment", Toast.LENGTH_SHORT).show()
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                    Toast.makeText(context, "No app found to open this file", Toast.LENGTH_SHORT).show()
                                                 }
                                             },
                                             modifier = Modifier.size(70.dp),

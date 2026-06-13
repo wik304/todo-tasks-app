@@ -24,6 +24,11 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.io.File
+import java.security.MessageDigest
+import androidx.core.content.FileProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 enum class TaskFilter { ALL, TODAY, OVERDUE }
 enum class TaskSort { DATE, PRIORITY }
@@ -80,6 +85,47 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
         sharedPrefs.edit().putBoolean("location_notifications_enabled", enabled).apply()
     }
 
+    private val defaultCategories = listOf("Work", "Personal", "Shopping", "Health", "Education")
+
+    var categoriesList by mutableStateOf(loadCategories())
+        private set
+
+    fun addCategory(category: String) {
+        val trimmed = category.trim()
+        if (trimmed.isNotBlank() && !categoriesList.contains(trimmed)) {
+            val updated = categoriesList + trimmed
+            categoriesList = updated
+            saveCategories(updated)
+        }
+    }
+
+    private fun loadCategories(): List<String> {
+        val json = sharedPrefs.getString("custom_categories", null) ?: return defaultCategories
+        return try {
+            val custom = Gson().fromJson(json, Array<String>::class.java).toList()
+            (defaultCategories + custom).distinct()
+        } catch (e: Exception) {
+            defaultCategories
+        }
+    }
+
+    private fun saveCategories(list: List<String>) {
+        val custom = list.filter { !defaultCategories.contains(it) }
+        sharedPrefs.edit().putString("custom_categories", Gson().toJson(custom)).apply()
+    }
+
+    fun isDefaultCategory(category: String): Boolean {
+        return defaultCategories.contains(category)
+    }
+
+    fun deleteCategory(category: String) {
+        if (!isDefaultCategory(category)) {
+            val updated = categoriesList - category
+            categoriesList = updated
+            saveCategories(updated)
+        }
+    }
+
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
 
@@ -88,6 +134,13 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
 
     private val _selectedSort = MutableStateFlow(TaskSort.DATE)
     val selectedSort = _selectedSort.asStateFlow()
+
+    private val _selectedCategoryFilter = MutableStateFlow("All")
+    val selectedCategoryFilter = _selectedCategoryFilter.asStateFlow()
+
+    fun onCategoryFilterChange(category: String) {
+        _selectedCategoryFilter.value = category
+    }
 
     var appTheme by mutableStateOf("System")
         private set
@@ -100,8 +153,9 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
         taskDao.getAllTasks(),
         _searchQuery,
         _selectedFilter,
-        _selectedSort
-    ) { tasks, query, filter, sort ->
+        _selectedSort,
+        _selectedCategoryFilter
+    ) { tasks, query, filter, sort, categoryFilter ->
         var result = tasks.filter {
             it.title.contains(query, ignoreCase = true) || it.description.contains(query, ignoreCase = true)
         }
@@ -111,6 +165,10 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
             TaskFilter.ALL -> result
             TaskFilter.TODAY -> result.filter { it.executeAt != null && isToday(it.executeAt) }
             TaskFilter.OVERDUE -> result.filter { it.executeAt != null && it.executeAt < now && !it.isCompleted }
+        }
+
+        if (categoryFilter != "All") {
+            result = result.filter { it.category == categoryFilter }
         }
 
         when (sort) {
@@ -134,10 +192,15 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
         customInterval: Int,
         customUnit: String,
         locations: List<LocationData>,
-        attachments: List<AttachmentData>
+        attachments: List<AttachmentData>,
+        category: String
     ) {
         viewModelScope.launch {
             val gson = Gson()
+
+            val processedAttachments = withContext(Dispatchers.IO) {
+                attachments.map { copyAttachmentToInternal(it) }
+            }
 
             var executeAtTimestamp: Long? = null
             if (date.isNotBlank() && time.isNotBlank()) {
@@ -158,19 +221,23 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
                 createdAt = System.currentTimeMillis(),
                 executeAt = executeAtTimestamp,
                 isCompleted = false,
-                category = "Default",
+                category = category,
                 priority = priority,
                 isRecurring = isRecurring,
                 recurrenceType = recurrenceType,
                 customRecurrenceInterval = customInterval,
                 customRecurrenceUnit = customUnit,
                 locationsJson = if (locations.isNotEmpty()) gson.toJson(locations) else null,
-                attachmentsJson = if (attachments.isNotEmpty()) gson.toJson(attachments) else null
+                attachmentsJson = if (processedAttachments.isNotEmpty()) gson.toJson(processedAttachments) else null
             )
             val generatedId = taskDao.insertTask(task)
             val savedTask = task.copy(id = generatedId)
             NotificationScheduler.scheduleNotification(getApplication(), savedTask, delayMinutes = 0)
             GeofenceManager.addGeofencesForTask(getApplication(), savedTask)
+
+            withContext(Dispatchers.IO) {
+                cleanupOrphanedAttachments()
+            }
         }
     }
 
@@ -186,10 +253,15 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
         customInterval: Int,
         customUnit: String,
         locations: List<LocationData>,
-        attachments: List<AttachmentData>
+        attachments: List<AttachmentData>,
+        category: String
     ) {
         viewModelScope.launch {
             val gson = Gson()
+
+            val processedAttachments = withContext(Dispatchers.IO) {
+                attachments.map { copyAttachmentToInternal(it) }
+            }
 
             var executeAtTimestamp: Long? = null
             if (date.isNotBlank() && time.isNotBlank()) {
@@ -209,14 +281,14 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
                 createdAt = System.currentTimeMillis(),
                 executeAt = executeAtTimestamp,
                 isCompleted = false,
-                category = "Default",
+                category = category,
                 priority = priority,
                 isRecurring = isRecurring,
                 recurrenceType = recurrenceType,
                 customRecurrenceInterval = customInterval,
                 customRecurrenceUnit = customUnit,
                 locationsJson = if (locations.isNotEmpty()) gson.toJson(locations) else null,
-                attachmentsJson = if (attachments.isNotEmpty()) gson.toJson(attachments) else null
+                attachmentsJson = if (processedAttachments.isNotEmpty()) gson.toJson(processedAttachments) else null
             )
             taskDao.updateTask(updatedTask)
 
@@ -224,6 +296,10 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
             NotificationScheduler.scheduleNotification(getApplication(), updatedTask, delayMinutes = 0)
             GeofenceManager.removeGeofencesForTask(getApplication(), updatedTask.id)
             GeofenceManager.addGeofencesForTask(getApplication(), updatedTask)
+
+            withContext(Dispatchers.IO) {
+                cleanupOrphanedAttachments()
+            }
         }
     }
 
@@ -293,6 +369,10 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
             taskDao.deleteTask(task)
             NotificationScheduler.cancelNotification(getApplication(), task.id)
             GeofenceManager.removeGeofencesForTask(getApplication(), task.id)
+
+            withContext(Dispatchers.IO) {
+                cleanupOrphanedAttachments()
+            }
         }
     }
 
@@ -316,5 +396,106 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
             }
         }
         return name
+    }
+
+
+    private fun copyAttachmentToInternal(attachment: AttachmentData): AttachmentData {
+        val context = getApplication<Application>()
+        val uri = Uri.parse(attachment.uriString)
+
+        if (uri.authority == "com.example.todoapp.fileprovider") {
+            return attachment
+        }
+
+        try {
+            val contentResolver = context.contentResolver
+
+            val hash = contentResolver.openInputStream(uri)?.use { inputStream ->
+                val digest = MessageDigest.getInstance("SHA-256")
+                val buffer = ByteArray(8192)
+                var bytesRead = inputStream.read(buffer)
+                while (bytesRead != -1) {
+                    digest.update(buffer, 0, bytesRead)
+                    bytesRead = inputStream.read(buffer)
+                }
+                val hashBytes = digest.digest()
+                hashBytes.joinToString("") { "%02x".format(it) }
+            } ?: return attachment
+
+            val extension = getFileExtension(attachment.name)
+            val filename = if (extension.isNotEmpty()) "$hash.$extension" else hash
+
+            val attachmentsDir = File(context.filesDir, "attachments")
+            if (!attachmentsDir.exists()) {
+                attachmentsDir.mkdirs()
+            }
+
+            val targetFile = File(attachmentsDir, filename)
+
+            if (!targetFile.exists()) {
+                contentResolver.openInputStream(uri)?.use { inputStream ->
+                    targetFile.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                }
+            }
+
+            val fileProviderUri = FileProvider.getUriForFile(
+                context,
+                "com.example.todoapp.fileprovider",
+                targetFile
+            )
+
+            return attachment.copy(uriString = fileProviderUri.toString())
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return attachment
+        }
+    }
+
+    private fun getFileExtension(filename: String): String {
+        val lastDotIndex = filename.lastIndexOf('.')
+        return if (lastDotIndex != -1 && lastDotIndex < filename.length - 1) {
+            filename.substring(lastDotIndex + 1).lowercase()
+        } else {
+            ""
+        }
+    }
+
+    private suspend fun cleanupOrphanedAttachments() {
+        val allTasks = taskDao.getAllTasksList()
+        val referencedFiles = mutableSetOf<String>()
+        val gson = Gson()
+
+        for (task in allTasks) {
+            if (!task.attachmentsJson.isNullOrEmpty() && task.attachmentsJson != "[]") {
+                try {
+                    val attachments = gson.fromJson(task.attachmentsJson, Array<AttachmentData>::class.java)
+                    for (att in attachments) {
+                        val uri = Uri.parse(att.uriString)
+                        if (uri.authority == "com.example.todoapp.fileprovider") {
+                            val filename = uri.lastPathSegment
+                            if (filename != null) {
+                                referencedFiles.add(filename)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+
+        val attachmentsDir = File(getApplication<Application>().filesDir, "attachments")
+        if (attachmentsDir.exists() && attachmentsDir.isDirectory) {
+            val files = attachmentsDir.listFiles()
+            if (files != null) {
+                for (file in files) {
+                    if (file.isFile && !referencedFiles.contains(file.name)) {
+                        file.delete()
+                    }
+                }
+            }
+        }
     }
 }

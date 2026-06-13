@@ -22,6 +22,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks ORDER BY executeAt ASC")
     fun getAllTasks(): Flow<List<TaskEntity>>
 
+    @Query("SELECT * FROM tasks")
+    suspend fun getAllTasksList(): List<TaskEntity>
+
     @Query("SELECT * FROM tasks WHERE priority = 'HIGH' AND isCompleted = 0")
     fun getHighPriorityPendingTasks(): Flow<List<TaskEntity>>
 

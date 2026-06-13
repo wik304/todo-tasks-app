@@ -163,7 +163,7 @@ fun Navigation(viewModel: TaskViewModel) {
 
                     composable(route = Screen.AddTaskScreen.route) {
                         AddTaskScreen(
-                            onSaveClick = { _, title, description, date, time, priority, isRecurring, recurrenceType, customInterval, customUnit, locations, attachments ->
+                            onSaveClick = { _, title, description, date, time, priority, isRecurring, recurrenceType, customInterval, customUnit, locations, attachments, category ->
                                 viewModel.addTask(
                                     title = title,
                                     description = description,
@@ -175,7 +175,8 @@ fun Navigation(viewModel: TaskViewModel) {
                                     customInterval = customInterval,
                                     customUnit = customUnit,
                                     locations = locations,
-                                    attachments = attachments
+                                    attachments = attachments,
+                                    category = category
                                 )
                                 navController.navigate(Screen.TasksScreen.route) {
                                     popUpTo(navController.graph.startDestinationId) { inclusive = false }
@@ -194,9 +195,9 @@ fun Navigation(viewModel: TaskViewModel) {
                         if (taskToEdit != null) {
                             AddTaskScreen(
                                 taskToEdit = taskToEdit,
-                                onSaveClick = { id, title, description, date, time, priority, isRecurring, recurrenceType, customInterval, customUnit, locations, attachments ->
+                                onSaveClick = { id, title, description, date, time, priority, isRecurring, recurrenceType, customInterval, customUnit, locations, attachments, category ->
                                     if (id != null) {
-                                        viewModel.updateTaskDetails(id, title, description, date, time, priority, isRecurring, recurrenceType, customInterval, customUnit, locations, attachments)
+                                        viewModel.updateTaskDetails(id, title, description, date, time, priority, isRecurring, recurrenceType, customInterval, customUnit, locations, attachments, category)
                                     }
                                     navController.popBackStack()
                                 },

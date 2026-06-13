@@ -60,7 +60,8 @@ fun AddTaskScreen(
         customInterval: Int,
         customUnit: String,
         locations: List<LocationData>,
-        attachments: List<AttachmentData>
+        attachments: List<AttachmentData>,
+        category: String
     ) -> Unit,
     viewModel: TaskViewModel
 ) {
@@ -152,6 +153,12 @@ fun AddTaskScreen(
         )
     }
 
+    var selectedCategory by rememberSaveable {
+        mutableStateOf(taskToEdit?.category ?: viewModel.categoriesList.firstOrNull() ?: "Default")
+    }
+    var showAddCategoryField by rememberSaveable { mutableStateOf(false) }
+    var newCategoryText by rememberSaveable { mutableStateOf("") }
+
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
@@ -211,6 +218,9 @@ fun AddTaskScreen(
                                 selectedTime = Pair(15, 0)
                                 selectedLocations = emptyList()
                                 selectedAttachments = emptyList()
+                                selectedCategory = viewModel.categoriesList.firstOrNull() ?: "Default"
+                                showAddCategoryField = false
+                                newCategoryText = ""
                             },
                             modifier = Modifier.padding(start = 8.dp)
                         ) {
@@ -245,7 +255,8 @@ fun AddTaskScreen(
                                     customInterval.toIntOrNull() ?: 1,
                                     customUnit,
                                     selectedLocations,
-                                    selectedAttachments
+                                    selectedAttachments,
+                                    selectedCategory
                                 )
                             } else {
                                 Toast.makeText(context, "Task title is required", Toast.LENGTH_SHORT).show()
@@ -453,6 +464,107 @@ fun AddTaskScreen(
                         disabledIndicatorColor = Color.Transparent
                     )
                 )
+            }
+
+            TextSection("Category") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        items(viewModel.categoriesList) { cat ->
+                            FilterChip(
+                                selected = selectedCategory == cat,
+                                onClick = {
+                                    selectedCategory = cat
+                                    showAddCategoryField = false
+                                },
+                                label = { Text(cat) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                                ),
+                                trailingIcon = if (!viewModel.isDefaultCategory(cat)) {
+                                    {
+                                        IconButton(
+                                            onClick = {
+                                                viewModel.deleteCategory(cat)
+                                                if (selectedCategory == cat) {
+                                                    selectedCategory = viewModel.categoriesList.firstOrNull() ?: "Default"
+                                                }
+                                            },
+                                            modifier = Modifier.size(18.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Delete category",
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
+                                } else null
+                            )
+                        }
+
+                        item {
+                            FilterChip(
+                                selected = showAddCategoryField,
+                                onClick = { showAddCategoryField = !showAddCategoryField },
+                                label = { Text("+ Add Custom") },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    selectedContainerColor = MaterialTheme.colorScheme.secondary,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onSecondary
+                                )
+                            )
+                        }
+                    }
+
+                    if (showAddCategoryField) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            TextField(
+                                value = newCategoryText,
+                                onValueChange = { newCategoryText = it },
+                                placeholder = { Text("New category name") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                shape = MaterialTheme.shapes.medium,
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent
+                                )
+                            )
+
+                            Button(
+                                onClick = {
+                                    if (newCategoryText.isNotBlank()) {
+                                        val trimmed = newCategoryText.trim()
+                                        viewModel.addCategory(trimmed)
+                                        selectedCategory = trimmed
+                                        newCategoryText = ""
+                                        showAddCategoryField = false
+                                    } else {
+                                        Toast.makeText(context, "Category name cannot be empty", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                shape = MaterialTheme.shapes.medium,
+                                modifier = Modifier.height(56.dp)
+                            ) {
+                                Text("Add")
+                            }
+                        }
+                    }
+                }
             }
 
             HorizontalDivider(

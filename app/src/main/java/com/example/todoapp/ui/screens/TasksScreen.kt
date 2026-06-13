@@ -22,6 +22,17 @@ import com.example.todoapp.ui.TaskViewModel
 import com.example.todoapp.ui.TaskFilter
 import com.example.todoapp.ui.TaskSort
 import com.example.todoapp.ui.components.TaskItem
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 
 @Composable
 fun TasksScreen(
@@ -111,6 +122,48 @@ fun TasksScreen(
                             { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                         } else null
                     )
+                }
+
+                item {
+                    var expanded by remember { mutableStateOf(false) }
+                    val selectedCategoryFilter by viewModel.selectedCategoryFilter.collectAsState()
+
+                    Box {
+                        FilterChip(
+                            selected = selectedCategoryFilter != "All",
+                            onClick = { expanded = true },
+                            label = { Text(if (selectedCategoryFilter == "All") "Category: All" else selectedCategoryFilter) },
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        )
+
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("All Categories") },
+                                onClick = {
+                                    viewModel.onCategoryFilterChange("All")
+                                    expanded = false
+                                }
+                            )
+                            viewModel.categoriesList.forEach { category ->
+                                DropdownMenuItem(
+                                    text = { Text(category) },
+                                    onClick = {
+                                        viewModel.onCategoryFilterChange(category)
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
 
                 item {

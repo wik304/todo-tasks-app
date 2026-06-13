@@ -126,7 +126,7 @@ fun TaskItem(
 
     SwipeToDismissBox(
         state = dismissState,
-        enableDismissFromStartToEnd = swipeToCompleteEnabled,
+        enableDismissFromStartToEnd = swipeToCompleteEnabled && !task.isCompleted,
         enableDismissFromEndToStart = swipeToDeleteEnabled,
         backgroundContent = {
             val direction = dismissState.dismissDirection
@@ -193,7 +193,7 @@ fun TaskItem(
                                 modifier = Modifier
                                     .padding(end = 12.dp, top = 2.dp)
                                     .size(22.dp)
-                                    .clickable { onComplete() },
+                                    .clickable(enabled = !task.isCompleted) { onComplete() },
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (task.isCompleted) {
@@ -486,34 +486,38 @@ fun TaskItem(
                                     Text("Delete")
                                 }
 
-                                TextButton(
-                                    onClick = {
-                                        onComplete()
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Complete task",
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Complete")
+                                if (!task.isCompleted) {
+                                    TextButton(
+                                        onClick = {
+                                            onComplete()
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Complete task",
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Complete")
+                                    }
                                 }
 
-                                TextButton(
-                                    onClick = {
-                                        onEdit()
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = "Edit task",
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Edit")
+                                if (!task.isCompleted) {
+                                    TextButton(
+                                        onClick = {
+                                            onEdit()
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Edit task",
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Edit")
+                                    }
                                 }
                             }
                         }

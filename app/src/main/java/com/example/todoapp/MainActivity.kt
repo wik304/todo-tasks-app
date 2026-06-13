@@ -67,9 +67,25 @@ class MainActivity : ComponentActivity() {
 
             KeepScreenOnEffect(keepAwake = viewModel.keepAwake)
 
+            val backgroundLocationLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission(),
+                onResult = { _ -> }
+            )
+
             val multiplePermissionsLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestMultiplePermissions(),
-                onResult = { _ -> }
+                onResult = { permissions ->
+                    val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+                    val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+
+                    if (fineLocationGranted || coarseLocationGranted) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                                backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                            }
+                        }
+                    }
+                }
             )
 
             LaunchedEffect(Unit) {
@@ -88,6 +104,12 @@ class MainActivity : ComponentActivity() {
 
                 if (permissionsNotGranted.isNotEmpty()) {
                     multiplePermissionsLauncher.launch(permissionsNotGranted.toTypedArray())
+                } else {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                            backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                        }
+                    }
                 }
             }
 

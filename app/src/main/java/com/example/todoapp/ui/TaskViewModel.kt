@@ -305,6 +305,7 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
 
     fun markAsCompleted(task: TaskEntity) {
         viewModelScope.launch {
+            if (task.isCompleted) return@launch
             taskDao.updateTask(task.copy(isCompleted = true))
 
             NotificationScheduler.cancelNotification(getApplication(), task.id)

@@ -193,16 +193,22 @@ fun Navigation(viewModel: TaskViewModel) {
                         val taskToEdit = tasks.find { it.id == taskId }
 
                         if (taskToEdit != null) {
-                            AddTaskScreen(
-                                taskToEdit = taskToEdit,
-                                onSaveClick = { id, title, description, date, time, priority, isRecurring, recurrenceType, customInterval, customUnit, locations, attachments, category ->
-                                    if (id != null) {
-                                        viewModel.updateTaskDetails(id, title, description, date, time, priority, isRecurring, recurrenceType, customInterval, customUnit, locations, attachments, category)
-                                    }
+                            if (taskToEdit.isCompleted) {
+                                androidx.compose.runtime.LaunchedEffect(Unit) {
                                     navController.popBackStack()
-                                },
-                                viewModel = viewModel
-                            )
+                                }
+                            } else {
+                                AddTaskScreen(
+                                    taskToEdit = taskToEdit,
+                                    onSaveClick = { id, title, description, date, time, priority, isRecurring, recurrenceType, customInterval, customUnit, locations, attachments, category ->
+                                        if (id != null) {
+                                            viewModel.updateTaskDetails(id, title, description, date, time, priority, isRecurring, recurrenceType, customInterval, customUnit, locations, attachments, category)
+                                        }
+                                        navController.popBackStack()
+                                    },
+                                    viewModel = viewModel
+                                )
+                            }
                         }
                     }
                 }

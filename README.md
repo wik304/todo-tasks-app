@@ -4,6 +4,25 @@ A modern, feature-rich Android task management application built entirely with K
 
 ---
 
+### Screens
+
+<div align="center">
+  <img src="to-do-app-screens/1.jpg" width="19%" alt="Tasks Screen">
+  <img src="to-do-app-screens/2.jpg" width="19%" alt="Tasks Screen 2">
+  <img src="to-do-app-screens/3.jpg" width="19%" alt="Add Task Screen">
+  <img src="to-do-app-screens/4.jpg" width="19%" alt="Add Task Screen 2">
+  <img src="to-do-app-screens/5.jpg" width="19%" alt="Tasks Screen 3">
+</div>
+
+<div align="center">
+  <img src="to-do-app-screens/6.jpg" width="24%" alt="Settings Screen">
+  <img src="to-do-app-screens/8.jpg" width="24%" alt="Edit Task">
+  <img src="to-do-app-screens/9.jpg" width="24%" alt="Main Screen Task Completed">
+  <img src="to-do-app-screens/7.jpg" width="24%" alt="Tasks Screen White">
+</div>
+
+---
+
 ## ✨ Key Features
 
 ### 🎨 Modern Declarative UI

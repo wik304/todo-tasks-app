@@ -1,6 +1,7 @@
 package com.example.todoapp
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -60,6 +61,8 @@ class MainActivity : ComponentActivity() {
                 return TaskViewModel(application, taskDao) as T
             }
         }
+        val viewModel = ViewModelProvider(this, viewModelFactory)[TaskViewModel::class.java]
+        handleIntent(intent, viewModel)
 
         setContent {
             val context = LocalContext.current
@@ -121,6 +124,28 @@ class MainActivity : ComponentActivity() {
                     Navigation(viewModel = viewModel)
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val db = TaskDatabase.getDatabase(applicationContext)
+        val taskDao = db.taskDao()
+        val viewModelFactory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return TaskViewModel(application, taskDao) as T
+            }
+        }
+        val viewModel = ViewModelProvider(this, viewModelFactory)[TaskViewModel::class.java]
+        handleIntent(intent, viewModel)
+    }
+
+    private fun handleIntent(intent: Intent?, viewModel: TaskViewModel) {
+        val taskId = intent?.getLongExtra("TASK_ID", -1L) ?: -1L
+        if (taskId != -1L) {
+            viewModel.setExpandedTaskId(taskId)
         }
     }
 }

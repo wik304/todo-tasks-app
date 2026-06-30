@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Check
@@ -204,9 +205,20 @@ fun TasksScreen(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-            Spacer(modifier = Modifier.height(12.dp))
+            val listState = rememberLazyListState()
+            val expandedTaskId = viewModel.expandedTaskId
+
+            LaunchedEffect(expandedTaskId, tasks) {
+                if (expandedTaskId != null) {
+                    val index = tasks.indexOfFirst { it.id == expandedTaskId }
+                    if (index >= 0) {
+                        listState.animateScrollToItem(index)
+                    }
+                }
+            }
 
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
@@ -225,6 +237,10 @@ fun TasksScreen(
                         onEdit = {
                             focusManager.clearFocus()
                             onEditClick(task.id)
+                        },
+                        initiallyExpanded = task.id == expandedTaskId,
+                        onExpandedHandled = {
+                            viewModel.clearExpandedTaskId()
                         }
                     )
                 }

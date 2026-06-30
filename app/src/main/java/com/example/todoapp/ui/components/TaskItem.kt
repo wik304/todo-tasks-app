@@ -84,12 +84,21 @@ fun TaskItem(
     onEdit: () -> Unit,
     modifier: Modifier = Modifier,
     swipeToCompleteEnabled: Boolean = true,
-    swipeToDeleteEnabled: Boolean = true
+    swipeToDeleteEnabled: Boolean = true,
+    initiallyExpanded: Boolean = false,
+    onExpandedHandled: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val gson = remember { Gson() }
 
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember(task.id) { mutableStateOf(initiallyExpanded) }
+
+    LaunchedEffect(initiallyExpanded) {
+        if (initiallyExpanded) {
+            expanded = true
+            onExpandedHandled()
+        }
+    }
 
     val locations = remember(task.locationsJson) {
         if (!task.locationsJson.isNullOrEmpty() && task.locationsJson != "[]") {

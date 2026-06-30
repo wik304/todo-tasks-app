@@ -10,6 +10,7 @@ import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -62,6 +63,18 @@ fun Navigation(viewModel: TaskViewModel) {
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    val expandedTaskId = viewModel.expandedTaskId
+    LaunchedEffect(expandedTaskId) {
+        if (expandedTaskId != null) {
+            if (currentRoute != Screen.TasksScreen.route) {
+                navController.navigate(Screen.TasksScreen.route) {
+                    popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+        }
+    }
 
     Row(modifier = Modifier.fillMaxSize()) {
         if (isTablet) {

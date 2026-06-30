@@ -39,6 +39,7 @@ import com.example.todoapp.ui.components.MapSelectionDialog
 import com.example.todoapp.ui.components.TextSection
 import com.example.todoapp.ui.components.WheelPicker
 import com.google.gson.Gson
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -159,6 +160,7 @@ fun AddTaskScreen(
     var showAddCategoryField by rememberSaveable { mutableStateOf(false) }
     var newCategoryText by rememberSaveable { mutableStateOf("") }
 
+    val scope = rememberCoroutineScope()
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
@@ -170,27 +172,39 @@ fun AddTaskScreen(
 
         val filesToAdd = uris.take(remainingSlots)
 
-        val newAttachments = filesToAdd.map { uri ->
-            try {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+        scope.launch {
+            val copiedAttachments = mutableListOf<AttachmentData>()
+            for (uri in filesToAdd) {
+                try {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
 
-            val fileName = viewModel.getFileName(context, uri)
-            val mimeType = context.contentResolver.getType(uri) ?: ""
-            val type = when {
-                mimeType.startsWith("image") -> "IMAGE"
-                mimeType.startsWith("application/pdf") -> "PDF"
-                mimeType.startsWith("audio") -> "AUDIO"
-                else -> "FILE"
+                val fileName = viewModel.getFileName(context, uri)
+                val mimeType = context.contentResolver.getType(uri) ?: ""
+                val type = when {
+                    mimeType.startsWith("image") -> "IMAGE"
+                    mimeType.startsWith("application/pdf") -> "PDF"
+                    mimeType.startsWith("audio") -> "AUDIO"
+                    else -> "FILE"
+                }
+
+                val originalAttachment = AttachmentData(uri.toString(), fileName, type)
+                val copiedAttachment = viewModel.copyAttachmentToInternal(originalAttachment)
+
+                val alreadyAdded = selectedAttachments.any { it.uriString == copiedAttachment.uriString }
+                if (!alreadyAdded && copiedAttachments.none { it.uriString == copiedAttachment.uriString }) {
+                    copiedAttachments.add(copiedAttachment)
+                }
             }
-            AttachmentData(uri.toString(), fileName, type)
+            if (copiedAttachments.isNotEmpty()) {
+                selectedAttachments = selectedAttachments + copiedAttachments
+            }
         }
-        selectedAttachments = selectedAttachments + newAttachments
     }
 
     Scaffold(

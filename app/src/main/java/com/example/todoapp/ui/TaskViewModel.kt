@@ -37,6 +37,14 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
 
     private val sharedPrefs = application.getSharedPreferences("todo_settings", Context.MODE_PRIVATE)
 
+    init {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                cleanupOrphanedAttachments()
+            }
+        }
+    }
+
     var notificationsEnabled by mutableStateOf(sharedPrefs.getBoolean("notifications_enabled", true))
         private set
 
@@ -83,6 +91,17 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
     fun toggleLocationNotifications(enabled: Boolean) {
         locationNotificationsEnabled = enabled
         sharedPrefs.edit().putBoolean("location_notifications_enabled", enabled).apply()
+    }
+
+    var expandedTaskId by mutableStateOf<Long?>(null)
+        private set
+
+    fun setExpandedTaskId(id: Long) {
+        expandedTaskId = id
+    }
+
+    fun clearExpandedTaskId() {
+        expandedTaskId = null
     }
 
     private val defaultCategories = listOf("Work", "Personal", "Shopping", "Health", "Education")
@@ -400,12 +419,12 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
     }
 
 
-    private fun copyAttachmentToInternal(attachment: AttachmentData): AttachmentData {
+    suspend fun copyAttachmentToInternal(attachment: AttachmentData): AttachmentData = withContext(Dispatchers.IO) {
         val context = getApplication<Application>()
         val uri = Uri.parse(attachment.uriString)
 
         if (uri.authority == "com.example.todoapp.fileprovider") {
-            return attachment
+            return@withContext attachment
         }
 
         try {
@@ -421,7 +440,7 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
                 }
                 val hashBytes = digest.digest()
                 hashBytes.joinToString("") { "%02x".format(it) }
-            } ?: return attachment
+            } ?: return@withContext attachment
 
             val extension = getFileExtension(attachment.name)
             val filename = if (extension.isNotEmpty()) "$hash.$extension" else hash
@@ -447,10 +466,10 @@ class TaskViewModel(application: Application, private val taskDao: TaskDao) : An
                 targetFile
             )
 
-            return attachment.copy(uriString = fileProviderUri.toString())
+            attachment.copy(uriString = fileProviderUri.toString())
         } catch (e: Exception) {
             e.printStackTrace()
-            return attachment
+            attachment
         }
     }
 
